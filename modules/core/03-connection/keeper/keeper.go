@@ -20,24 +20,29 @@ type Keeper struct {
 	// implements gRPC QueryServer interface
 	types.QueryServer
 
-	storeKey     storetypes.StoreKey
-	paramSpace   paramtypes.Subspace
-	cdc          codec.BinaryCodec
-	clientKeeper types.ClientKeeper
+	storeKey       storetypes.StoreKey
+	legacySubspace paramtypes.Subspace
+	cdc            codec.BinaryCodec
+	clientKeeper   types.ClientKeeper
+
+	// the address capable of executing a MsgUpdateConnectionParams message. Typically, this
+	// should be the x/gov module account.
+	authority string
 }
 
 // NewKeeper creates a new IBC connection Keeper instance
-func NewKeeper(cdc codec.BinaryCodec, key storetypes.StoreKey, paramSpace paramtypes.Subspace, ck types.ClientKeeper) Keeper {
+func NewKeeper(cdc codec.BinaryCodec, key storetypes.StoreKey, legacySubspace paramtypes.Subspace, ck types.ClientKeeper, authority string) Keeper {
 	// set KeyTable if it has not already been set
-	if !paramSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(types.ParamKeyTable())
+	if !legacySubspace.HasKeyTable() {
+		legacySubspace = legacySubspace.WithKeyTable(types.ParamKeyTable())
 	}
 
 	return Keeper{
-		storeKey:     key,
-		cdc:          cdc,
-		paramSpace:   paramSpace,
-		clientKeeper: ck,
+		storeKey:       key,
+		cdc:            cdc,
+		legacySubspace: legacySubspace,
+		clientKeeper:   ck,
+		authority:      authority,
 	}
 }
 
@@ -220,4 +225,9 @@ func (k Keeper) addConnectionToClient(ctx sdk.Context, clientID, connectionID st
 	conns = append(conns, connectionID)
 	k.SetClientConnectionPaths(ctx, clientID, conns)
 	return nil
+}
+
+// GetAuthority returns the connection module's authority.
+func (k Keeper) GetAuthority() string {
+	return k.authority
 }
